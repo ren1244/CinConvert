@@ -1,3 +1,70 @@
+/*
+【全域變數】
+FileBuf
+	[string,...]，儲存個別檔案的內容。
+FileBuf_Len
+	整數，使用者給予的檔案個數。
+CnsUniTable
+	[{c:整數，CNS碼數值,u:整數，Unicode數值},...]
+var CnsPhonTable;
+	[{c:整數，CNS碼數值,p:整數，注音代碼},...]
+	※注音代碼每6 bit為ㄧ個數值，由高位向低位放置，第一個注音放在 bit 29~24，第二個放在 bit 23~18，比較時相當於模擬注音字串的順序。
+var ErrorLog;
+	儲存所有錯誤訊息。
+
+【html控制】
+function onChangeFile(f,dname)
+	更新選取的檔名
+function init()
+	起始化
+
+【處理程序】點「轉換」按鈕後，會執行以下程序(依序由上往下)。
+function run() 
+	讀取CNS-Unicode檔案，將檔案內容儲存至FileBuf[]中。
+function ReadCnsUnicode()
+	讀取FileBuf[]，將其建立為CNS-Unicode映射表，儲存於CnsUniTable。
+	讀取Cns-Phonetic檔案，檔案內容儲存至FileBuf[]中。
+function ReadCnsPhonetic()
+	讀取FileBuf[]，將其建立為Cns-Phonetic映射表，儲存於CnsPhonTable。
+function SortTables()
+	處理CnsUniTable及CnsPhonTable，輸出結果。
+		處理時先建立[(index,index)]配對來映射兩個表格，概念像是C語言的指標，藉此加快排序速度。
+
+【搜尋】
+function BinSearch(key)
+	二元搜尋法，針對排序好的CnsUniTable(小到大)。
+	key為CNS碼。
+	回傳index。若找不到回傳-1。
+
+【比較函數】
+function cmp_CnsUni_CU(a,b)
+	比較函數：針對CnsUniTable，先比CNS再比Unicode
+function cmp_CnsUni_UC(a,b)
+	比較函數：針對CnsUniTable，先比Unicode再比CNS
+function cmp_CnsPhon_PC(a,b)
+	比較函數：針對CnsPhonTable，先比Phonetic再比CNS
+function cmp_A_PU(a,b)
+	比較函數：針對A，先比Phonetic再比Unicode
+	A為[(index,index)]
+function cmp_A_PC(a,b)
+	比較函數：針對A，先比Phonetic再比CNS
+	A為[(index,index)]
+
+【轉換】
+function toUTF16(uc)
+	將整數uc轉換為文字，uc代表此文字的unicode碼。
+function getHexFromString(str,pos)
+	從pos位置開始讀取字串str，回傳此16進位字串代表的整數。
+	str是16進位字串，例如"A8FF"。
+function toHex(v,sep)
+	將數值v轉換為16進位字串。
+	sep為每4位數就插入的分隔字元。
+function toPhon(phon)
+	將phon數值轉換為鍵盤符號字串。
+function getHeadStr()
+	回傳Cin檔案前面的檔頭。
+*/
+
 var FileBuf,FileBuf_Len;
 var CnsUniTable;
 var CnsPhonTable;
