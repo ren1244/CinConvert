@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>注音表格轉換</title>
+	<script src="FileRead.js" type="text/javascript"></script>
+</head>
+<body onload=init()>
+	輸入法中文名稱：<input type="text" value="我的注音輸入法" id="cname"><br>
+	輸入法英名稱：<input type="text" value="MyPhonetic" id="ename"><br>
+	匯入CNS-Unicode檔案：<input type="file" id ="fileInput1" multiple>
+	<div id="display1"></div>
+	匯入CNS-Phonetic檔案：<input type="file" id ="fileInput2" multiple>
+	<div id="display2"></div><hr>
+	<button onclick="run()">開始轉換</button><a id="download"></a><hr>
+	<div id="display3"></div>
+</body>
+</html>
