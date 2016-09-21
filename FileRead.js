@@ -71,6 +71,8 @@ function onChangeFile(f,dname)
 	d.innerHTML="";
 	for(i=0;i<n;++i)
 		d.innerHTML+=f.files[i].name+"<br>";
+	if(n==0)
+		d.innerHTML="<span style='color:gray;'>未選擇檔案</span>"
 }
 function init()
 {
@@ -78,6 +80,8 @@ function init()
 	var f2=document .getElementById("fileInput2");
 	f1 .setAttribute("onchange","onChangeFile(this,'display1')");
 	f2 .setAttribute("onchange","onChangeFile(this,'display2')");
+	onChangeFile(f1,'display1');
+	onChangeFile(f2,'display2');
 }
 function FilesReader(files,callback,callback2)
 {
