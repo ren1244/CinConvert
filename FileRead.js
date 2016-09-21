@@ -1,9 +1,5 @@
 /*
 【全域變數】
-FileBuf
-	[string,...]，儲存個別檔案的內容。
-FileBuf_Len
-	整數，使用者給予的檔案個數。
 CnsUniTable
 	[{c:整數，CNS碼數值,u:整數，Unicode數值},...]
 var CnsPhonTable;
@@ -18,17 +14,17 @@ function onChangeFile(f,dname)
 function init()
 	起始化
 
-【處理程序】點「轉換」按鈕後，會執行以下程序(依序由上往下)。
+【處理程序】點「轉換」按鈕後，會執行
+	run->((FilesReader->CreateCnsUnicode)|(FilesReader->CreateCnsPhonetic))->runProc
+	中間是異步處理
 function run() 
 	讀取CNS-Unicode檔案，將檔案內容儲存至FileBuf[]中。
-function ReadCnsUnicode()
-	讀取FileBuf[]，將其建立為CNS-Unicode映射表，儲存於CnsUniTable。
-	讀取Cns-Phonetic檔案，檔案內容儲存至FileBuf[]中。
-function ReadCnsPhonetic()
-	讀取FileBuf[]，將其建立為Cns-Phonetic映射表，儲存於CnsPhonTable。
-function SortTables()
+function CreateCnsUnicode(strarr)
+	以strarr資料建立CNS-Unicode映射表，儲存於CnsUniTable。
+function CreateCnsPhonetic(strarr)
+ 	以strarr資料建立CNS-Phonetic映射表，儲存於CnsPhonTable。
+function runProc()
 	處理CnsUniTable及CnsPhonTable，輸出結果。
-		處理時先建立[(index,index)]配對來映射兩個表格，概念像是C語言的指標，藉此加快排序速度。
 
 【搜尋】
 function BinSearch(key)
@@ -45,10 +41,8 @@ function cmp_CnsPhon_PC(a,b)
 	比較函數：針對CnsPhonTable，先比Phonetic再比CNS
 function cmp_A_PU(a,b)
 	比較函數：針對A，先比Phonetic再比Unicode
-	A為[(index,index)]
 function cmp_A_PC(a,b)
 	比較函數：針對A，先比Phonetic再比CNS
-	A為[(index,index)]
 
 【轉換】
 function toUTF16(uc)
@@ -65,7 +59,6 @@ function getHeadStr()
 	回傳Cin檔案前面的檔頭。
 */
 
-var FileBuf,FileBuf_Len;
 var CnsUniTable;
 var CnsPhonTable;
 var ErrorLog;
@@ -79,8 +72,6 @@ function onChangeFile(f,dname)
 	for(i=0;i<n;++i)
 		d.innerHTML+=f.files[i].name+"<br>";
 }
-
-
 function init()
 {
 	var f1=document .getElementById("fileInput1");
@@ -88,38 +79,54 @@ function init()
 	f1 .setAttribute("onchange","onChangeFile(this,'display1')");
 	f2 .setAttribute("onchange","onChangeFile(this,'display2')");
 }
-function run()
+function FilesReader(files,callback,callback2)
 {
-	var f1=document .getElementById("fileInput1").files;
+	var count=0;
+	var strarr=[];
+	var i,n;
 	var reader;
-	document .getElementById("download").innerHTML="";
-	//讀取CNS-Unicode檔案
-	ErrorLog="";
-	FileBuf=[];
-	FileBuf_Len=n=f1.length;
+	function f()
+	{
+		if(++count>=n)
+		{
+			callback(strarr);
+			callback2();
+		}
+	}
+	n=files.length;
 	for(i=0;i<n;++i)
 	{
 		reader=new FileReader();
 		reader.onload=function(e)
 		{
-			FileBuf.push(e.target.result);
-			if(FileBuf_Len==FileBuf.length)
-				ReadCnsUnicode();
-		}
-		reader.readAsText(f1[i]);
+			strarr.push(e.target.result);
+			f();
+		};
+		reader.readAsText(files[i]);
 	}
 }
-function ReadCnsUnicode()
+function run()
 {
-	//document .getElementById("display3").innerHTML="讀取CnsUnicode表格...";
+	var flag=0;
+	var f1=document .getElementById("fileInput1").files;
+	ErrorLog={fmtCU:"",fmtCP:"",uniErr:"",repeat:"",sameUni:""};
+	function f()
+	{
+		if(++flag>=2)
+			runProc();
+	}
+	FilesReader(document .getElementById("fileInput1").files,CreateCnsUnicode,f);
+	FilesReader(document .getElementById("fileInput2").files,CreateCnsPhonetic,f);
+}
+function CreateCnsUnicode(strarr)
+{
 	document .getElementById("display3").innerHTML="";
-	var i,j,n,txt,s,m,cns,uni,err_flag;
-	err_flag=0;
+	var i,j,n,txt,s,m,cns,uni;
 	CnsUniTable=[];
 	//建立CnsUniTable表格，若發現不符合格式，記錄在ErrorLog
-	for(i=0;i<FileBuf_Len;++i)
+	for(i=0;i<strarr.length;++i)
 	{
-		txt=FileBuf[i].split("\n");
+		txt=strarr[i].split("\n");
 		n=txt.length;
 		for(j=0;j<n;++j) //每行資料為txt[j];
 		{
@@ -129,12 +136,7 @@ function ReadCnsUnicode()
 			m=s.match(/[0-9A-F]{1,2}\t[0-9A-F]{4}\t[0-9A-F]{4,5}/);
 			if(m===null || m[0].length!=s.length)
 			{
-				if(err_flag==0)
-				{
-					err_flag=1;
-					ErrorLog+="【「CNS碼-Uincode」檔案未匯入資料(可能不符合格式)】\n";
-				}
-				ErrorLog+=s+"\n";
+				ErrorLog.fmtCU+=s+"\n";
 				continue;
 			}
 			cns=getHexFromString(s,0);
@@ -144,34 +146,14 @@ function ReadCnsUnicode()
 			CnsUniTable.push({c:cns,u:uni});
 		}
 	}
-	
-	//讀取Cns-Phonetic檔案
-	var f2=document .getElementById("fileInput2").files;
-	var reader;
-	FileBuf=[];
-	FileBuf_Len=n=f2.length;
-	
-	for(i=0;i<n;++i)
-	{
-		reader=new FileReader();
-		reader.onload=function(e)
-		{
-			FileBuf.push(e.target.result);
-			if(FileBuf_Len==FileBuf.length)
-				ReadCnsPhonetic();
-		}
-		reader.readAsText(f2[i]);
-	}
 }
-function ReadCnsPhonetic()
+function CreateCnsPhonetic(strarr)
 {
-	//document .getElementById("display3").innerHTML+="<br>讀取CnsPhonetic表格...";
-	var i,j,k,f,n,txt,s,m,cns,phon,shift,uc,err_flag;
-	err_flag=0;
+	var i,j,k,f,n,txt,s,m,cns,phon,shift,uc;
 	CnsPhonTable=[];
-	for(i=0;i<FileBuf_Len;++i)
+	for(i=0;i<strarr.length;++i)
 	{
-		txt=FileBuf[i].split("\n");
+		txt=strarr[i].split("\n");
 		n=txt.length;
 		for(j=0;j<n;++j) //每行資料為txt[j];
 		{
@@ -184,12 +166,7 @@ function ReadCnsPhonetic()
 				m=8;
 			else
 			{
-				if(err_flag===0)
-				{
-					ErrorLog+="【「CNS碼-注音」檔案未匯入資料(可能不符合格式)】\n";
-					err_flag=1;
-				}
-				ErrorLog+=s+"\n";
+				ErrorLog.fmtCP+=s+"\n";
 				continue;
 			}
 			cns=getHexFromString(s,0)<<16|getHexFromString(s,m-5);
@@ -225,12 +202,7 @@ function ReadCnsPhonetic()
 				}
 				else
 				{
-					if(err_flag===0)
-					{
-						ErrorLog+="【「CNS碼-注音」檔案未匯入資料(可能不符合格式)】\n";
-						err_flag=1;
-					}
-					ErrorLog+=s+"\n";
+					ErrorLog.fmtCP+=s+"\n";
 					k=-1;
 					break;
 				}
@@ -243,31 +215,21 @@ function ReadCnsPhonetic()
 			}
 		}
 	}
-	SortTables();
 }//	ㄅㄙ:[3105,3119]	ㄚㄦ:[311A,3226]	ㄧㄩ:[3127,3129] ˇ:02C7	ˊ:02CA	ˋ:02CB	˙:02D9
-function SortTables()
+function runProc()
 {
-	var i,j,s,A,k,err_flag,err_flag2;
-	err_flag2=err_flag=0;
+	var i,j,s,A,k;
 	s=document .getElementById("display3");
 	//排序讀取到的兩種表格
-	//s.innerHTML+="<br>排序CNS-Unicode表格...";
 	CnsUniTable.sort(cmp_CnsUni_CU);
 	
 	//建立[(index_of_phonTable,index_of_unicodeTable)]
 	A=[];
 	for(i=0;i<CnsPhonTable.length;++i)
 		if((k=BinSearch(CnsPhonTable[i].c))>=0)
-			A.push([i,k]);
+			A.push({p:CnsPhonTable[i],u:CnsUniTable[k]});
 		else
-		{
-			if(err_flag===0)
-			{
-				ErrorLog+="【CNS-注音表格中，以下CNS碼無法找到符合的Unicode】\n";
-				err_flag=1;
-			}
-			ErrorLog+=toHex(CnsPhonTable[i].c,"-")+"\n";
-		}
+			ErrorLog.uniErr+=toHex(CnsPhonTable[i].c,"-")+"\n";
 	
 	//檢查是否有重複的「注音-UNICODE」
 	A.sort(cmp_A_PU);//Phon-Unicode
@@ -275,14 +237,7 @@ function SortTables()
 	{
 		for(k=1;i+k<A.length && cmp_A_PU(A[i],A[i+k])==0;++k);
 		if(k>1)
-		{
-			if(err_flag2===0)
-			{
-				ErrorLog+="【刪除重複的「注音-unicode」資料】\n";
-				err_flag2=1;
-			}
-			ErrorLog+="刪除"+(k-1)+"個「"+toPhon(CnsPhonTable[A[i][0]].p)+"-"+toUTF16(CnsUniTable[A[i][1]].u)+"("+toHex(CnsUniTable[A[i][1]].u).toUpperCase()+")」\n";
-		}
+			ErrorLog.repeat+="刪除"+(k-1)+"個「"+toPhon(A[i].p.p)+"-"+toUTF16(A[i].u.u)+"("+toHex(A[i].u.u).toUpperCase()+")」\n";
 		A[j++]=A[i];
 	}
 	A.length=j;
@@ -290,8 +245,8 @@ function SortTables()
 	//輸出「注音-UNICODE」
 	var out_str=getHeadStr().replace(/\n/g,"\r\n");
 	for(i=0;i<A.length;++i)
-		out_str+=toPhon(CnsPhonTable[A[i][0]].p)
-			+"\t"+toUTF16(CnsUniTable[A[i][1]].u)+"\r\n";
+		out_str+=toPhon(A[i].p.p)
+			+"\t"+toUTF16(A[i].u.u)+"\r\n";
 	out_str+="%chardef end\n";
 	var blob=new Blob([out_str],{type:"text/plain"});
 	var blobUrl=URL.createObjectURL(blob);
@@ -300,27 +255,39 @@ function SortTables()
 	link .setAttribute("download","Phonetic.cin");
 	link.innerHTML="Phonetic.cin";
 	
-	err_flag2=0;
 	CnsUniTable.sort(cmp_CnsUni_UC);
 	for(i=0;i<CnsUniTable.length;i+=k)
 	{
 		for(k=1;i+k<CnsUniTable.length && CnsUniTable[i].u==CnsUniTable[i+k].u;++k);
 		if(k>1)
 		{
-			if(err_flag2===0)
-			{
-				ErrorLog+="【相同的Unicode有不同的CNS】\n";
-				err_flag2=1;
-			}
 			for(j=0;j<k;++j)
-				ErrorLog+=""+toHex(CnsUniTable[i+j].c,"\t").toUpperCase()
+				ErrorLog.sameUni+=""+toHex(CnsUniTable[i+j].c,"\t").toUpperCase()
 					+"\t"+toHex(CnsUniTable[i+j].u).toUpperCase()
 					+"\t"+toUTF16(CnsUniTable[i+j].u)+"\n";
 		}
 	}
-	s.innerHTML+=""+ErrorLog.substr(0,2048).replace(/\n/g,"<br>");
-	if(ErrorLog.length>2048)
-		s.innerHTML+="(資料過長...)";
+	createErrorMsg(s,"Cns-Unicode格式錯誤",ErrorLog.fmtCU);
+	createErrorMsg(s,"Cns-Phonetic格式錯誤",ErrorLog.fmtCP);
+	createErrorMsg(s,"Cns-Phonetic無對應Unicode",ErrorLog.uniErr);
+	createErrorMsg(s,"刪除重複資料",ErrorLog.repeat);
+	createErrorMsg(s,"相異Cns對應相同Unicode",ErrorLog.sameUni);
+}
+function createErrorMsg(p,header,msg)
+{
+	if(msg.length)
+	{
+		var d=document .createElement("div");
+		var h=document .createElement("h4");
+		var c=document .createElement("pre");
+		h .appendChild(document.createTextNode(header));
+		d .appendChild(h);
+		d .appendChild(c);
+		c .appendChild(document.createTextNode(msg));
+		d .setAttribute("style","display:inline-block;vertical-align:top;margin:0.25em;padding:0.5em;border:1px solid;border-radius:5px;");
+		p.appendChild(d);
+	}
+	
 }
 function toUTF16(uc)
 {
@@ -366,21 +333,11 @@ function cmp_CnsPhon_PC(a,b)
 }
 function cmp_A_PU(a,b)
 {
-	var p1,p2,u1,u2;
-	p1=CnsPhonTable[a[0]].p;
-	p2=CnsPhonTable[b[0]].p;
-	u1=CnsUniTable[a[1]].u;
-	u2=CnsUniTable[b[1]].u;
-	return p1==p2?u1-u2:p1-p2;
+	return a.p.p==b.p.p?a.u.u-b.u.u:a.p.p-b.p.p;
 }
 function cmp_A_PC(a,b)
 {
-	var p1,p2,c1,c2;
-	p1=CnsPhonTable[a[0]].p;
-	p2=CnsPhonTable[b[0]].p;
-	c1=CnsUniTable[a[1]].c;
-	c2=CnsUniTable[b[1]].c;
-	return p1==p2?c1-c2:p1-p2;
+	return a.p.p==b.p.p?a.u.c-b.u.c:a.p.p-b.p.p;
 }
 function getHexFromString(str,pos)
 {
