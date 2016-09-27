@@ -17,3 +17,7 @@
 
 ※ CNS_phonetic.txt、CNS2UNICODE_Unicode 2.txt、CNS2UNICODE_Unicode 15.txt、CNS2UNICODE_Unicode BMP.txt等檔案可至[政府資料開放平台-CNS11643](http://data.gov.tw/node/5961)下載。  
 ※ 已測試瀏覽器：Firefox、Chrome、Edge。
+
+## 感謝
+
+2016.9.25 IanHo 指出不同輸入框架需要不同檔頭的問題並給予資訊協助。[連結](https://www.ubuntu-tw.org/modules/newbb/viewtopic.php?post_id=354902#forumpost354902)。

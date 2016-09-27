@@ -266,7 +266,8 @@ function runProc()
 		out_str+=toPhon(A[i].p.p)
 			+"\t"+toUTF16(A[i].u.u)+"\r\n";
 	out_str+="%chardef end\n";
-	refreshDownloadUrl(document .getElementById("download"),out_str,"Phonetic.cin","Phonetic.cin");
+	var out_filename=document .getElementById("suit").selectedIndex==0?"Phonetic_gcin.cin":"Phonetic_OpenVanilla.cin";
+	refreshDownloadUrl(document .getElementById("download"),out_str,out_filename,out_filename);
 	
 	CnsUniTable.sort(cmp_CnsUni_UC);
 	err="";
@@ -407,12 +408,16 @@ function toPhon(phon)
 }
 function getHeadStr()
 {
+	var t=document .getElementById("suit").selectedIndex;
 	var str;
 	str="\
 %gen_inp\n\
 %ename "+document .getElementById("ename").value+"\n\
-%cname "+document .getElementById("cname").value+"\n\
-%selkey 0123456789\n\
+%cname "+document .getElementById("cname").value+"\n"
++(t==0?"":"%encoding UTF-8\n")
++"%selkey 123456789\n"
++(t==0?"%dupsel 9\n":"")
++"%endkey 3467\n\
 %keyname begin\n\
 , ㄝ\n\
 - ㄦ\n\
