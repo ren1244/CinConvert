@@ -111,9 +111,11 @@ function FilesReader(files,callback,callback2)
 }
 function run()
 {
+	document .getElementById("display3").innerHTML="";
+	document .getElementById("download").innerHTML="";
 	var flag=0;
 	var f1=document .getElementById("fileInput1").files;
-	ErrorLog={fmtCU:"",fmtCP:"",uniErr:"",repeat:"",sameUni:""};
+	ErrorLog=[];
 	function f()
 	{
 		if(++flag>=2)
@@ -124,9 +126,9 @@ function run()
 }
 function CreateCnsUnicode(strarr)
 {
-	document .getElementById("display3").innerHTML="";
-	var i,j,n,txt,s,m,cns,uni;
+	var i,j,n,txt,s,m,cns,uni,err;
 	CnsUniTable=[];
+	err="";
 	//建立CnsUniTable表格，若發現不符合格式，記錄在ErrorLog
 	for(i=0;i<strarr.length;++i)
 	{
@@ -140,7 +142,7 @@ function CreateCnsUnicode(strarr)
 			m=s.match(/[0-9A-F]{1,2}\t[0-9A-F]{4}\t[0-9A-F]{4,5}/);
 			if(m===null || m[0].length!=s.length)
 			{
-				ErrorLog.fmtCU+=s+"\n";
+				err+=s+"\n";
 				continue;
 			}
 			cns=getHexFromString(s,0);
@@ -150,10 +152,13 @@ function CreateCnsUnicode(strarr)
 			CnsUniTable.push({c:cns,u:uni});
 		}
 	}
+	if(err.length)
+		ErrorLog.push({h:"Cns-Unicode格式錯誤",txt:err});
 }
 function CreateCnsPhonetic(strarr)
 {
-	var i,j,k,f,n,txt,s,m,cns,phon,shift,uc;
+	var i,j,k,f,n,txt,s,m,cns,phon,shift,uc,err;
+	err="";
 	CnsPhonTable=[];
 	for(i=0;i<strarr.length;++i)
 	{
@@ -170,7 +175,7 @@ function CreateCnsPhonetic(strarr)
 				m=8;
 			else
 			{
-				ErrorLog.fmtCP+=s+"\n";
+				err+=s+"\n";
 				continue;
 			}
 			cns=getHexFromString(s,0)<<16|getHexFromString(s,m-5);
@@ -206,7 +211,7 @@ function CreateCnsPhonetic(strarr)
 				}
 				else
 				{
-					ErrorLog.fmtCP+=s+"\n";
+					err+=s+"\n";
 					k=-1;
 					break;
 				}
@@ -219,31 +224,40 @@ function CreateCnsPhonetic(strarr)
 			}
 		}
 	}
+	if(err.length)
+		ErrorLog.push({h:"Cns-Phonetic格式錯誤",txt:err});
 }//	ㄅㄙ:[3105,3119]	ㄚㄦ:[311A,3226]	ㄧㄩ:[3127,3129] ˇ:02C7	ˊ:02CA	ˋ:02CB	˙:02D9
 function runProc()
 {
-	var i,j,s,A,k;
+	var i,j,s,A,k,err;
+	
 	s=document .getElementById("display3");
 	//排序讀取到的兩種表格
 	CnsUniTable.sort(cmp_CnsUni_CU);
 	
 	//建立[(index_of_phonTable,index_of_unicodeTable)]
 	A=[];
+	err="";
 	for(i=0;i<CnsPhonTable.length;++i)
 		if((k=BinSearch(CnsPhonTable[i].c))>=0)
 			A.push({p:CnsPhonTable[i],u:CnsUniTable[k]});
 		else
-			ErrorLog.uniErr+=toHex(CnsPhonTable[i].c,"-")+"\n";
+			err+=toHex(CnsPhonTable[i].c,"\t")+"\n";
+	if(err.length)
+		ErrorLog.push({h:"Cns-Phonetic無對應Unicode",txt:err});
 	
 	//檢查是否有重複的「注音-UNICODE」
 	A.sort(cmp_A_PU);//Phon-Unicode
+	err="";
 	for(i=j=0;i<A.length;i+=k)
 	{
 		for(k=1;i+k<A.length && cmp_A_PU(A[i],A[i+k])==0;++k);
 		if(k>1)
-			ErrorLog.repeat+="刪除"+(k-1)+"個「"+toPhon(A[i].p.p)+"-"+toUTF16(A[i].u.u)+"("+toHex(A[i].u.u).toUpperCase()+")」\n";
+			err+="刪除"+(k-1)+"個「"+toPhon(A[i].p.p)+"-"+toUTF16(A[i].u.u)+"("+toHex(A[i].u.u).toUpperCase()+")」\n";
 		A[j++]=A[i];
 	}
+	if(err.length)
+		ErrorLog.push({h:"刪除重複資料",txt:err});
 	A.length=j;
 	A.sort(cmp_A_PC);//Phon-Phonetic
 	//輸出「注音-UNICODE」
@@ -252,46 +266,57 @@ function runProc()
 		out_str+=toPhon(A[i].p.p)
 			+"\t"+toUTF16(A[i].u.u)+"\r\n";
 	out_str+="%chardef end\n";
-	var blob=new Blob([out_str],{type:"text/plain"});
-	var blobUrl=URL.createObjectURL(blob);
-	var link=document .getElementById("download");
-	link .setAttribute("href",blobUrl);
-	link .setAttribute("download","Phonetic.cin");
-	link.innerHTML="Phonetic.cin";
+	var out_filename=document .getElementById("suit").selectedIndex==0?"Phonetic_gcin.cin":"Phonetic_OpenVanilla.cin";
+	refreshDownloadUrl(document .getElementById("download"),out_str,out_filename,out_filename);
 	
 	CnsUniTable.sort(cmp_CnsUni_UC);
+	err="";
 	for(i=0;i<CnsUniTable.length;i+=k)
 	{
 		for(k=1;i+k<CnsUniTable.length && CnsUniTable[i].u==CnsUniTable[i+k].u;++k);
 		if(k>1)
 		{
 			for(j=0;j<k;++j)
-				ErrorLog.sameUni+=""+toHex(CnsUniTable[i+j].c,"\t").toUpperCase()
+				err+=""+toHex(CnsUniTable[i+j].c,"\t").toUpperCase()
 					+"\t"+toHex(CnsUniTable[i+j].u).toUpperCase()
 					+"\t"+toUTF16(CnsUniTable[i+j].u)+"\n";
 		}
 	}
-	createErrorMsg(s,"Cns-Unicode格式錯誤",ErrorLog.fmtCU);
-	createErrorMsg(s,"Cns-Phonetic格式錯誤",ErrorLog.fmtCP);
-	createErrorMsg(s,"Cns-Phonetic無對應Unicode",ErrorLog.uniErr);
-	createErrorMsg(s,"刪除重複資料",ErrorLog.repeat);
-	createErrorMsg(s,"相異Cns對應相同Unicode",ErrorLog.sameUni);
+	if(err.length)
+		ErrorLog.push({h:"相異Cns對應相同Unicode",txt:err});
+	for(i=0;i<ErrorLog.length;++i)
+		createErrorMsg(s,ErrorLog[i].h,ErrorLog[i].txt);
+}
+function refreshDownloadUrl(aTag_ref,out_str,LinkName,FileName)
+{
+	var blob=new Blob([out_str],{type:"text/plain"});
+	var blobUrl=URL.createObjectURL(blob);
+	aTag_ref .setAttribute("href",blobUrl);
+	aTag_ref .setAttribute("download",FileName);
+	if(typeof LinkName == "string")
+		aTag_ref.innerHTML=LinkName;
+	else
+		aTag_ref .appendChild(LinkName);
 }
 function createErrorMsg(p,header,msg)
 {
-	if(msg.length)
-	{
-		var d=document .createElement("div");
-		var h=document .createElement("h4");
-		var c=document .createElement("pre");
-		h .appendChild(document.createTextNode(header));
-		d .appendChild(h);
-		d .appendChild(c);
-		c .appendChild(document.createTextNode(msg));
-		d .setAttribute("style","display:inline-block;vertical-align:top;margin:0.25em;padding:0.5em;border:1px solid;border-radius:5px;");
-		p.appendChild(d);
-	}
+	svgDownload_icon="<svg width='16px' height=16px>\
+<path d='M5,0 L11,0 11,6 16,6 8,15 0,6 5,6 z' style='fill:blue;'/>\
+<path d='M0,15 L16,15' style='stroke:blue;stroke-width:2px;'/>\
+</svg>";
+	var t,h;
+	var d=document .createElement("div");
+	d .setAttribute("style","display:inline-block;vertical-align:top;margin:0.25em;padding:0.5em;border:1px solid;border-radius:5px;");
 	
+	d .appendChild(h=document .createElement("h4"));
+		h .appendChild(document.createTextNode(header+" "));
+		h .appendChild(t=document .createElement("a"));
+		refreshDownloadUrl(t,msg,svgDownload_icon,header+".txt");
+	
+	d .appendChild(t=document .createElement("pre"));
+	t .appendChild(document.createTextNode(msg));
+	
+	p .appendChild(d);
 }
 function toUTF16(uc)
 {
@@ -383,12 +408,16 @@ function toPhon(phon)
 }
 function getHeadStr()
 {
+	var t=document .getElementById("suit").selectedIndex;
 	var str;
 	str="\
 %gen_inp\n\
 %ename "+document .getElementById("ename").value+"\n\
-%cname "+document .getElementById("cname").value+"\n\
-%selkey 0123456789\n\
+%cname "+document .getElementById("cname").value+"\n"
++(t==0?"":"%encoding UTF-8\n")
++"%selkey 123456789\n"
++(t==0?"%dupsel 9\n":"")
++"%endkey 3467\n\
 %keyname begin\n\
 , ㄝ\n\
 - ㄦ\n\

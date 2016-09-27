@@ -16,6 +16,10 @@
 			vertical-align:top;
 			margin:0.25em;
 		}
+		.frame2{
+			vertical-align:top;
+			margin:0.25em;
+		}
 		.area{
 			display:inline-block;
 			vertical-align:top;
@@ -26,23 +30,32 @@
 			border:1px solid gray;
 			padding:0 0.25em;
 			min-height:2em;
+			margin:3px;
 		}
 		#display2{
 			border-radius:0.5em;
 			border:1px solid gray;;
 			padding:0 0.25em;
 			min-height:2em;
+			margin:3px;
 		}
 	</style>
 </head>
 <body onload=init()>
-	<div class="frame1"><span class="tag">(1)匯入CNS-Unicode檔案</span><input type="file" id ="fileInput1" multiple><div id="display1"></div></div>
-	<div class="frame1"><span class="tag">(2)匯入CNS-Phonetic檔案</span><input type="file" id ="fileInput2" multiple><div id="display2"></div></div>
-	<div class="area">
-	<div class="frame2"><span class="tag">(3)指定輸入法名稱</span><br>中文<input type="text" value="我的注音輸入法" id="cname"></div>
-	<div class="frame2">英文<input type="text" value="MyPhonetic" id="ename"></div>
+	<div class="frame1"><span class="tag">(1)匯入CNS-Unicode檔案</span> <input type="file" id ="fileInput1" multiple><div id="display1"></div></div>
+	<div class="frame1"><span class="tag">(2)匯入CNS-Phonetic檔案</span> <input type="file" id ="fileInput2" multiple><div id="display2"></div></div>
+	<div class="frame1">
+		<span class="tag">(3)指定輸入法名稱</span>
+		<div class="frame2">中文 <input type="text" value="我的注音輸入法" id="cname"></div>
+		<div class="frame2">英文 <input type="text" value="MyPhonetic" id="ename"></div>
 	</div>
-	<div class="frame3"><button onclick="run()">開始轉換</button><a id="download"></a></div>
+	<div class="frame1"><span class="tag">(4)適用輸入法框架</span>
+		<div class="frame2"><select id="suit">
+			<option>gcin</option>
+			<option>OpenVanilla</option>
+		</select></div>
+	</div>
+	<div class="frame3"><button onclick="run()">開始轉換</button> <a id="download"></a></div>
 	<hr>
 	<div id="display3"></div>
 </body>
